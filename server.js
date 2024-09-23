@@ -1,7 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
+// MongoDB URI (update as necessary)
 const uri = "mongodb+srv://brianmtonga592:1Brisothi20*@cluster0.4d9rw0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
 // Create an instance of Express
@@ -20,28 +23,27 @@ mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
     console.error("Error connecting to MongoDB:", error.message);
   });
 
-  
+// Multer setup for image uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = './upload/images';
+    fs.exists(dir, (exist) => {
+      if (!exist) {
+        return fs.mkdir(dir, { recursive: true }, (error) => cb(error, dir));
+      }
+      return cb(null, dir);
+    });
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`;
+    cb(null, uniqueName);
+  }
+});
 
-  // Multer setup for image uploads
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      const dir = './upload/images';
-      fs.exists(dir, (exist) => {
-        if (!exist) {
-          return fs.mkdir(dir, (error) => cb(error, dir));
-        }
-        return cb(null, dir);
-      });
-    },
-    filename: (req, file, cb) => {
-      cb(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
-    }
-  });
-  
-  const upload = multer({ storage: storage });
+const upload = multer({ storage: storage });
 
-  app.use('/images', express.static('upload/images'));
-  
+// Serve static files for images
+app.use('/images', express.static(path.join(__dirname, 'upload/images')));
 
 // Define Inventory schema and model
 const inventorySchema = new mongoose.Schema({
@@ -65,6 +67,35 @@ const saleSchema = new mongoose.Schema({
 
 const Sale = mongoose.model('Sale', saleSchema);
 
+// Add a new product with image upload
+app.post('/api/inventory', upload.single('image'), async (req, res) => {
+  try {
+    const { name, description, price, category, stock } = req.body;
+
+    // Ensure the image is uploaded and a valid path is stored
+    const imageUrl = req.file ? `/images/${req.file.filename}` : '';
+
+    if (!name || !description || !price || !category || !stock || !imageUrl) {
+      return res.status(400).json({ message: 'All fields are required including image.' });
+    }
+
+    const newInventory = new Inventory({
+      name,
+      description,
+      price: parseFloat(price),
+      category,
+      stock: parseInt(stock),
+      imageUrl
+    });
+
+    const savedInventory = await newInventory.save();
+    res.status(201).json(savedInventory);
+  } catch (err) {
+    console.error('Error saving inventory:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Fetch all products
 app.get('/api/inventory', async (req, res) => {
   try {
@@ -75,28 +106,9 @@ app.get('/api/inventory', async (req, res) => {
   }
 });
 
-// Add a new product
-app.post('/api/inventory', async (req, res) => {
-  console.log('Request body:', req.body); // Log the received data
-
-  const { name, description, price, category, stock, imageUrl } = req.body;
-
-  const newInventory = new Inventory({ name, description, price, category, stock, imageUrl });
-
-  try {
-    const savedInventory = await newInventory.save();
-    res.status(201).json(savedInventory);
-  } catch (err) {
-    console.error('Error saving inventory:', err.message);
-    res.status(400).json({ message: err.message });
-  }
-});
-
 // Fetch product by ID
 app.get('/api/inventory/:id', async (req, res) => {
   const { id } = req.params;
-  console.log('Received ID:', id);
-
   try {
     const product = await Inventory.findById(id);
     if (!product) {
