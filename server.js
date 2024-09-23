@@ -1,5 +1,6 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const multer = require('multer');
 
 const uri = "mongodb+srv://brianmtonga592:1Brisothi20*@cluster0.4d9rw0d.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 
@@ -18,6 +19,29 @@ mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
   .catch((error) => {
     console.error("Error connecting to MongoDB:", error.message);
   });
+
+  
+
+  // Multer setup for image uploads
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = './upload/images';
+      fs.exists(dir, (exist) => {
+        if (!exist) {
+          return fs.mkdir(dir, (error) => cb(error, dir));
+        }
+        return cb(null, dir);
+      });
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${file.fieldname}_${Date.now()}${path.extname(file.originalname)}`);
+    }
+  });
+  
+  const upload = multer({ storage: storage });
+
+  app.use('/images', express.static('upload/images'));
+  
 
 // Define Inventory schema and model
 const inventorySchema = new mongoose.Schema({
