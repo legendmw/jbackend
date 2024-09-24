@@ -71,12 +71,17 @@ const Sale = mongoose.model('Sale', saleSchema);
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
   try {
     const { name, description, price, category, stock } = req.body;
+    
+    // Check if the image was uploaded
+    if (!req.file) {
+      return res.status(400).json({ message: 'Image upload failed' });
+    }
 
-    // Ensure the image is uploaded and a valid path is stored
-    const imageUrl = req.file ? `/images/${req.file.filename}` : '';
+    const imageUrl = `/images/${req.file.filename}`;
 
-    if (!name || !description || !price || !category || !stock || !imageUrl) {
-      return res.status(400).json({ message: 'All fields are required including image.' });
+    // Validate all other fields
+    if (!name || !description || !price || !category || !stock) {
+      return res.status(400).json({ message: 'All fields are required.' });
     }
 
     const newInventory = new Inventory({
@@ -85,7 +90,7 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
       price: parseFloat(price),
       category,
       stock: parseInt(stock),
-      imageUrl
+      imageUrl,
     });
 
     const savedInventory = await newInventory.save();
@@ -95,6 +100,7 @@ app.post('/api/inventory', upload.single('image'), async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
 
 // Fetch all products
 app.get('/api/inventory', async (req, res) => {
