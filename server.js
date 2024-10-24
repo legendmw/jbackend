@@ -67,6 +67,43 @@ const saleSchema = new mongoose.Schema({
 
 const Sale = mongoose.model('Sale', saleSchema);
 
+const locationSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  coordinates: { type: String, required: true }, // Use the term 'coordinates'
+});
+
+const Location = mongoose.model("Location", locationSchema);
+
+// POST route to save the location
+app.post("/api/locations", async (req, res) => {
+  const { name, location } = req.body; // Accept 'location' from frontend
+
+  if (!name || !location) {
+    return res.status(400).json({ error: "Name and coordinates are required" });
+  }
+
+  try {
+    const newLocation = new Location({ name, coordinates: location }); // Save 'location' as 'coordinates'
+    await newLocation.save();
+    res
+      .status(201)
+      .json({ message: "Location saved successfully", location: newLocation });
+  } catch (error) {
+    console.error("Error saving location:", error);
+    res.status(500).json({ error: "Error saving location" });
+  }
+});
+
+app.get("/api/locations", async (req, res) => {
+  try {
+    const locations = await Location.find(); // Fetch all locations from the database
+    res.status(200).json(locations); // Send the list of locations as JSON
+  } catch (error) {
+    console.error("Error fetching locations:", error);
+    res.status(500).json({ error: "Error fetching locations" }); // Handle errors
+  }
+});
+
 // Add a new product with image upload
 app.post('/api/inventory', upload.single('image'), async (req, res) => {
   try {
